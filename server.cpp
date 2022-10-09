@@ -191,7 +191,9 @@ string RandomPick4Digit() {
 	}
 	return question;
 }
+// WARNING: To Be Added...	//
 string GetResponse(string& guess, string& ans) { return "123"; }
+// WARNING					//
 void CommandExit(int fd, vector<string>& v) {
 	if(v.size() != 1) SendMsg(fd, "Usage: exit\n", 0);
 	else rmSet.push_back(fd);
