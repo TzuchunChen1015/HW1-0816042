@@ -29,6 +29,9 @@ map<string, UserInfo> nameMap, emailMap;
 struct ClientStatus {
 	bool login = false;
 	string username;
+	bool inGame = false;
+	int timeLeft = 5;
+	string question;
 } CS[MXClient + 1];
 vector<int> rmSet;
 void Init();
@@ -38,6 +41,7 @@ void DealWithCommand(int, string);
 void CommandLogin(int, vector<string>&);
 void CommandLogout(int, vector<string>&);
 void CommandStartGame(int, vector<string>&);
+void PlayGame(int, string);
 bool Is4DigitNumber(string&);
 string RandomPick4Digit();
 string GetResponse(string&, string&);
@@ -98,14 +102,14 @@ int main(int argc, char** argv) {
 				else {
 					msg.pop_back();
 					DealWithCommand(clientFd, msg);
-					if(rmSet.empty() || rmSet.back() != clientFd)
+					if(!CS[clientFd].inGame && (rmSet.empty() || rmSet.back() != clientFd))
 						SendMsg(clientFd, "% ", 1);
 				}
 			}
 		}
 		// Remove Closed Clients
 		for(int i = 0; i < (int) rmSet.size(); i++) {
-			CS[rmSet[i]].login = false;
+			CS[rmSet[i]].login = CS[rmSet[i]].inGame = false, CS[rmSet[i]].timeLeft = 5;
 			FD_CLR(rmSet[i], &allSet);
 			clientSet.erase(rmSet[i]);
 			close(rmSet[i]);
@@ -139,14 +143,17 @@ void SendMsg(int fd, string s, bool lastMsg) {
 }
 void DealWithCommand(int fd, string s) {
 	if(!s.length()) return;
-	stringstream ss; ss << s;
-	string str; vector<string> v;
-	while(ss >> str) v.push_back(str);
-	if(v.front() == "login") CommandLogin(fd, v);
-	else if(v.front() == "logout") CommandLogout(fd, v);
-	else if(v.front() == "start-game") CommandStartGame(fd, v);
-	else if(v.front() == "exit") CommandExit(fd, v);
-	else SendMsg(fd, "ERROR: Command Not Found\n", 0);
+	else if(CS[fd].inGame) PlayGame(fd, s);
+	else {
+		stringstream ss; ss << s;
+		string str; vector<string> v;
+		while(ss >> str) v.push_back(str);
+		if(v.front() == "login") CommandLogin(fd, v);
+		else if(v.front() == "logout") CommandLogout(fd, v);
+		else if(v.front() == "start-game") CommandStartGame(fd, v);
+		else if(v.front() == "exit") CommandExit(fd, v);
+		else SendMsg(fd, "ERROR: Command Not Found\n", 0);
+	}
 }
 void CommandLogin(int fd, vector<string>& v) {
 	if(v.size() != 3) SendMsg(fd, "Usage: login <username> <password>\n", 0);
@@ -154,8 +161,7 @@ void CommandLogin(int fd, vector<string>& v) {
 	else if(nameMap.find(v[1]) == nameMap.end()) SendMsg(fd, "Username not found.\n", 0);
 	else if(v[2] != nameMap[v[1]].password) SendMsg(fd, "Password not correct.\n", 0);
 	else {
-		CS[fd].login = true;
-		CS[fd].username = v[1];
+		CS[fd].login = true, CS[fd].inGame = false, CS[fd].timeLeft = 5, CS[fd].username = v[1];
 		SendMsg(fd, "Welcome, " + v[1] + ".\n", 0);
 	}
 }
@@ -163,7 +169,7 @@ void CommandLogout(int fd, vector<string>& v) {
 	if(v.size() != 1) SendMsg(fd, "Usage: logout\n", 0);
 	else if(!CS[fd].login) SendMsg(fd, "Please login first.\n", 0);
 	else {
-		CS[fd].login = false;
+		CS[fd].login = CS[fd].inGame = false, CS[fd].timeLeft = 5;
 		SendMsg(fd, "Bye, " + CS[fd].username + ".\n", 0);
 	}
 }
@@ -172,23 +178,26 @@ void CommandStartGame(int fd, vector<string>& v) {
 	else if(!CS[fd].login) SendMsg(fd, "Please login first.\n", 0);
 	else if(v.size() == 2 && !Is4DigitNumber(v.back())) SendMsg(fd, "Usage: start-game <4-digit number>\n", 0);
 	else {
-		string question = v.back();
-		if(v.size() == 1) question = RandomPick4Digit();
-		SendMsg(fd, "Please typing a 4-digit number:\n", 0);
-		int usedTime = 5;
-		while(usedTime > 0) {
-			string guess = RecvMsg(fd); guess.pop_back();
-			if(!Is4DigitNumber(guess)) SendMsg(fd, "Your guess should be a 4-digit number.\n", 0);
-			else {
-				usedTime--;
-				if(guess == question) {
-					SendMsg(fd, "You got the answer!\n", 0);
-					return;
-				}
-				else SendMsg(fd, GetResponse(guess, question) + "\n", 0);
+		CS[fd].question = v.back(), CS[fd].inGame = true, CS[fd].timeLeft = 5;
+		if(v.size() == 1) CS[fd].question = RandomPick4Digit();
+		SendMsg(fd, "Please typing a 4-digit number:\n", 1);
+	}
+}
+void PlayGame(int fd, string guess) {
+	if(!Is4DigitNumber(guess)) SendMsg(fd, "Your guess should be a 4-digit number.\n", 1);
+	else {
+		CS[fd].timeLeft--;
+		if(guess == CS[fd].question) {
+			SendMsg(fd, "You got the answer!\n", 0);
+			CS[fd].inGame = false, CS[fd].timeLeft = 5;
+		}
+		else {
+			SendMsg(fd, GetResponse(guess, CS[fd].question) + "\n", (CS[fd].timeLeft > 0));
+			if(!CS[fd].timeLeft) {
+				SendMsg(fd, "You lose the game!\n", 0);
+				CS[fd].inGame = false, CS[fd].timeLeft = 5;
 			}
 		}
-		SendMsg(fd, "You lose the game!\n", 0);
 	}
 }
 bool Is4DigitNumber(string& s) {
@@ -201,7 +210,7 @@ string RandomPick4Digit() {
 	string question;
 	for(int i = 0; i < 4; i++) {
 		int x = rand() % 10;
-		question = (char) (x + '0');
+		question += (char) (x + '0');
 	}
 	return question;
 }
