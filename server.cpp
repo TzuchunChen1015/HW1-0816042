@@ -16,13 +16,22 @@
 #include <time.h>
 using namespace std;
 const int MXL = 1e3, MXClient = 1e3;
-struct UserInfo { string name, email, password; };
+struct UserInfo {
+	string name, email, password;
+	UserInfo() {}
+	UserInfo(string n, string e, string p) {
+		this->name = n;
+		this->email = e;
+		this->password = p;
+	}
+};
 map<string, UserInfo> nameMap, emailMap;
 struct ClientStatus {
 	bool login = false;
 	string username;
 } CS[MXClient + 1];
 vector<int> rmSet;
+void Init();
 string RecvMsg(int);
 void SendMsg(int, string, bool);
 void DealWithCommand(int, string);
@@ -34,6 +43,7 @@ string RandomPick4Digit();
 string GetResponse(string&, string&);
 void CommandExit(int, vector<string>&);
 int main(int argc, char** argv) {
+	Init();
 	// Set Server IP and Port	
 	const string IP = argv[1];
 	sockaddr_in serverAddr;
@@ -104,6 +114,10 @@ int main(int argc, char** argv) {
 	}
 	return 0;
 }
+void Init() {
+	nameMap.clear(), emailMap.clear();
+	nameMap["Peter"] = emailMap["peter@google.com"] = UserInfo("Peter", "peter@google.com", "0000");
+}
 string RecvMsg(int fd) {
 	string msg; char BUF[2]; int nBytes;
 	BUF[1] = '\0';
@@ -162,8 +176,8 @@ void CommandStartGame(int fd, vector<string>& v) {
 		if(v.size() == 1) question = RandomPick4Digit();
 		SendMsg(fd, "Please typing a 4-digit number:\n", 0);
 		int usedTime = 5;
-		while(usedTime) {
-			string guess; cin >> guess;
+		while(usedTime > 0) {
+			string guess = RecvMsg(fd); guess.pop_back();
 			if(!Is4DigitNumber(guess)) SendMsg(fd, "Your guess should be a 4-digit number.\n", 0);
 			else {
 				usedTime--;
@@ -171,7 +185,7 @@ void CommandStartGame(int fd, vector<string>& v) {
 					SendMsg(fd, "You got the answer!\n", 0);
 					return;
 				}
-				else SendMsg(fd, GetResponse(guess, question), 0);
+				else SendMsg(fd, GetResponse(guess, question) + "\n", 0);
 			}
 		}
 		SendMsg(fd, "You lose the game!\n", 0);
