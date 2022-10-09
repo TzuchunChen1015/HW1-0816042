@@ -11,6 +11,9 @@
 #include <vector>
 #include <sstream>
 #include <map>
+#include <ctype.h>
+#include <stdio.h>
+#include <time.h>
 using namespace std;
 const int MXL = 1e3, MXClient = 1e3;
 struct UserInfo { string name, email, password; };
@@ -26,6 +29,9 @@ void DealWithCommand(int, string);
 void CommandLogin(int, vector<string>&);
 void CommandLogout(int, vector<string>&);
 void CommandStartGame(int, vector<string>&);
+bool Is4DigitNumber(string&);
+string RandomPick4Digit();
+string GetResponse(string&, string&);
 void CommandExit(int, vector<string>&);
 int main(int argc, char** argv) {
 	// Set Server IP and Port	
@@ -147,7 +153,45 @@ void CommandLogout(int fd, vector<string>& v) {
 		SendMsg(fd, "Bye, " + CS[fd].username + ".\n", 0);
 	}
 }
-void CommandStartGame(int fd, vector<string>& v) {}
+void CommandStartGame(int fd, vector<string>& v) {
+	if(v.size() > 2) SendMsg(fd, "Usage: start-game <4-digit number>\n", 0);
+	else if(!CS[fd].login) SendMsg(fd, "Please login first.\n", 0);
+	else if(v.size() == 2 && !Is4DigitNumber(v.back())) SendMsg(fd, "Usage: start-game <4-digit number>\n", 0);
+	else {
+		string question = v.back();
+		if(v.size() == 1) question = RandomPick4Digit();
+		SendMsg(fd, "Please typing a 4-digit number:\n", 0);
+		int usedTime = 5;
+		while(usedTime) {
+			string guess; cin >> guess;
+			if(!Is4DigitNumber(guess)) SendMsg(fd, "Your guess should be a 4-digit number.\n", 0);
+			else {
+				usedTime--;
+				if(guess == question) {
+					SendMsg(fd, "You got the answer!\n", 0);
+					return;
+				}
+				else SendMsg(fd, GetResponse(guess, question), 0);
+			}
+		}
+		SendMsg(fd, "You lose the game!\n", 0);
+	}
+}
+bool Is4DigitNumber(string& s) {
+	if(s.length() != 4) return false;
+	for(int i = 0; i < 4; i++) if(!isdigit(s[i])) return false;
+	return true;
+}
+string RandomPick4Digit() {
+	srand(time(NULL));
+	string question;
+	for(int i = 0; i < 4; i++) {
+		int x = rand() % 10;
+		question = (char) (x + '0');
+	}
+	return question;
+}
+string GetResponse(string& guess, string& ans) { return "123"; }
 void CommandExit(int fd, vector<string>& v) {
 	if(v.size() != 1) SendMsg(fd, "Usage: exit\n", 0);
 	else rmSet.push_back(fd);
