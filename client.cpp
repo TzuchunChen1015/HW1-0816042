@@ -34,8 +34,15 @@ int main(int argc, char** argv) {
 		msg += '\n';
 		// Use UDP to Send Message
 		if(msg[0] == 'r' || msg[0] == 'g') {
-			//
+			char BUF[MXL + 1];
+			strcpy(BUF, msg.c_str()); BUF[msg.length()] = '\0';
+			sendto(udpFd, BUF, strlen(BUF), 0, (struct sockaddr*) &serverAddr, sizeof(serverAddr));
+			bzero(BUF, sizeof(BUF));
+			recvfrom(udpFd, BUF, MXL, 0, (struct sockaddr*) &serverAddr, NULL);
+			string msg = BUF;
+			cout << msg;
 		}
+		// Use TCP to Send Message
 		else {
 			SendMsg(tcpFd, msg);
 			if(msg == "exit\n") break;
