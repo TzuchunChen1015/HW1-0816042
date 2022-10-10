@@ -28,6 +28,10 @@ int main(int argc, char** argv) {
 	cout << RecvMsg(tcpFd);
 
 	int udpFd = socket(AF_INET, SOCK_DGRAM, 0);
+	if(udpFd == -1) {
+		cerr << "Failed to Construct UDP Socket\n";
+		exit(0);
+	}
 
 	string msg;
 	while(getline(cin, msg)) {
@@ -38,7 +42,8 @@ int main(int argc, char** argv) {
 			strcpy(BUF, msg.c_str()); BUF[msg.length()] = '\0';
 			sendto(udpFd, BUF, strlen(BUF), 0, (struct sockaddr*) &serverAddr, sizeof(serverAddr));
 			bzero(BUF, sizeof(BUF));
-			recvfrom(udpFd, BUF, MXL, 0, (struct sockaddr*) &serverAddr, NULL);
+			socklen_t len;
+			recvfrom(udpFd, BUF, sizeof(BUF), 0, (struct sockaddr*) &serverAddr, &len);
 			string msg = BUF;
 			cout << msg;
 		}

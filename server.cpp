@@ -37,6 +37,9 @@ vector<int> rmSet;
 void Init();
 string RecvMsg(int);
 void SendMsg(int, string, bool);
+void SendMsgUDP(int, string, sockaddr_in&);
+void CommandRegister(int, vector<string>&, sockaddr_in&);
+void CommandGameRule(int, vector<string>&, sockaddr_in&);
 void DealWithCommand(int, string);
 void CommandLogin(int, vector<string>&);
 void CommandLogout(int, vector<string>&);
@@ -90,7 +93,20 @@ int main(int argc, char** argv) {
 		}
 		// Handle UDP Message
 		if(FD_ISSET(udpFd, &rSet)) {
-			
+			sockaddr_in clientAddr;
+			bzero(&clientAddr, sizeof(clientAddr));
+			char BUF[MXL + 1]; int nBytes; socklen_t len;
+			nBytes = recvfrom(udpFd, BUF, sizeof(BUF), 0, (struct sockaddr*) &clientAddr, &len);
+			sendto(udpFd, BUF, strlen(BUF), 0, (struct sockaddr*) &clientAddr, sizeof(clientAddr));
+			BUF[nBytes] = '\0';
+			string msg = BUF;
+		cout << msg << '\n';
+			stringstream ss; ss << msg; 
+			string str; vector<string> v;
+			while(ss >> str) v.push_back(str);
+			if(v.front() == "register") CommandRegister(udpFd, v, clientAddr);
+			else if(v.front() == "game-rule") CommandGameRule(udpFd, v, clientAddr);
+			else SendMsgUDP(udpFd, "ERROR: Command Not Found\n", clientAddr);
 		}
 		// Check Each Client 
 		rmSet.clear();
@@ -139,6 +155,34 @@ void SendMsg(int fd, string s, bool lastMsg) {
 		nBytes = send(fd, BUF + now, leftBytes, 0);
 		leftBytes -= nBytes;
 		now += nBytes;
+	}
+}
+void SendMsgUDP(int fd, string s, sockaddr_in& clientAddr) {
+	char BUF[MXL + 1];
+cout << ntohs(clientAddr.sin_port) << '\n';
+cout << s << '\n';
+	strcpy(BUF, s.c_str()); BUF[s.length()] = '\0';
+	sendto(fd, BUF, strlen(BUF) + 1, 0, (struct sockaddr*) &clientAddr, sizeof(clientAddr));
+}
+void CommandRegister(int fd, vector<string>& v, sockaddr_in& clientAddr) {
+	if(v.size() != 4) SendMsgUDP(fd, "register <username> <email> <password>\n", clientAddr);
+	else if(nameMap.find(v[1]) != nameMap.end()) SendMsgUDP(fd, "Username is already used.\n", clientAddr);
+	else if(emailMap.find(v[2]) != emailMap.end()) SendMsgUDP(fd, "Email is already used.\n", clientAddr);
+	else {
+		nameMap[v[1]] = emailMap[v[2]] = UserInfo(v[1], v[2], v[3]);
+		SendMsgUDP(fd, "Register successfully.\n", clientAddr);
+	}
+}
+void CommandGameRule(int fd, vector<string>& v, sockaddr_in& clientAddr) {
+	if(v.size() != 1) SendMsgUDP(fd, "Usage: game-rule\n", clientAddr);
+	else {
+		string msg = "1. Each question is a 4-digit secret number.\n"
+					"2. After each guess, you will get a hint with the following information:\n"
+					"2.1 The number of \"A\", which are digits in the guess that are in the correct position.\n"
+					"2.2 The number of \"B\", which are digits in the guess that are in the answer but are in the wrong position.\n"
+					"The hint will be formatted as \"xAyB\".\n"
+					"3. 5 chances for each question.\n";
+		SendMsgUDP(fd, msg, clientAddr);
 	}
 }
 void DealWithCommand(int fd, string s) {
