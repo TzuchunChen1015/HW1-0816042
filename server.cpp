@@ -93,14 +93,12 @@ int main(int argc, char** argv) {
 		}
 		// Handle UDP Message
 		if(FD_ISSET(udpFd, &rSet)) {
-			sockaddr_in clientAddr;
-			bzero(&clientAddr, sizeof(clientAddr));
-			char BUF[MXL + 1]; int nBytes; socklen_t len;
+			sockaddr_in clientAddr; bzero(&clientAddr, sizeof(clientAddr));
+			char BUF[MXL + 1]; int nBytes; socklen_t len = sizeof(sockaddr);
+			bzero(BUF, sizeof(BUF));
 			nBytes = recvfrom(udpFd, BUF, sizeof(BUF), 0, (struct sockaddr*) &clientAddr, &len);
-			sendto(udpFd, BUF, strlen(BUF), 0, (struct sockaddr*) &clientAddr, sizeof(clientAddr));
 			BUF[nBytes] = '\0';
 			string msg = BUF;
-		cout << msg << '\n';
 			stringstream ss; ss << msg; 
 			string str; vector<string> v;
 			while(ss >> str) v.push_back(str);
@@ -158,11 +156,10 @@ void SendMsg(int fd, string s, bool lastMsg) {
 	}
 }
 void SendMsgUDP(int fd, string s, sockaddr_in& clientAddr) {
-	char BUF[MXL + 1];
-cout << ntohs(clientAddr.sin_port) << '\n';
-cout << s << '\n';
+	s += "% ";
+	char BUF[MXL + 1]; bzero(BUF, sizeof(BUF));
 	strcpy(BUF, s.c_str()); BUF[s.length()] = '\0';
-	sendto(fd, BUF, strlen(BUF) + 1, 0, (struct sockaddr*) &clientAddr, sizeof(clientAddr));
+	sendto(fd, BUF, strlen(BUF), 0, (const struct sockaddr*) &clientAddr, sizeof(clientAddr));
 }
 void CommandRegister(int fd, vector<string>& v, sockaddr_in& clientAddr) {
 	if(v.size() != 4) SendMsgUDP(fd, "register <username> <email> <password>\n", clientAddr);

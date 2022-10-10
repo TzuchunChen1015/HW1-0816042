@@ -38,11 +38,11 @@ int main(int argc, char** argv) {
 		msg += '\n';
 		// Use UDP to Send Message
 		if(msg[0] == 'r' || msg[0] == 'g') {
-			char BUF[MXL + 1];
+			char BUF[MXL + 1]; bzero(BUF, sizeof(BUF));
 			strcpy(BUF, msg.c_str()); BUF[msg.length()] = '\0';
 			sendto(udpFd, BUF, strlen(BUF), 0, (struct sockaddr*) &serverAddr, sizeof(serverAddr));
 			bzero(BUF, sizeof(BUF));
-			socklen_t len;
+			socklen_t len = sizeof(serverAddr);
 			recvfrom(udpFd, BUF, sizeof(BUF), 0, (struct sockaddr*) &serverAddr, &len);
 			string msg = BUF;
 			cout << msg;
