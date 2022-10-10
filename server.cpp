@@ -58,21 +58,23 @@ int main(int argc, char** argv) {
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_addr.s_addr = htonl(INADDR_ANY);
 	serverAddr.sin_port = htons(atoi(IP.c_str()));
+	// Build UDP
+	int udpFd = socket(AF_INET, SOCK_DGRAM, 0);		// fd = 3
+	if(udpFd == -1 ) {
+		cerr << "Failed to Construct UDP Socket\n";
+		exit(0);
+	}	
+	bind(udpFd, (const struct sockaddr*) &serverAddr, sizeof(serverAddr));
+	cout << "UDP server is running\n";
 	// Build TCP
-	int tcpFd = socket(AF_INET, SOCK_STREAM, 0);	// fd = 3
+	int tcpFd = socket(AF_INET, SOCK_STREAM, 0);	// fd = 4
 	if(tcpFd == -1 ) {
 		cerr << "Failed to Construct TCP Socket\n";
 		exit(0);
 	}
 	bind(tcpFd, (const struct sockaddr*) &serverAddr, sizeof(serverAddr));
 	listen(tcpFd, SOMAXCONN);
-	// Build UDP
-	int udpFd = socket(AF_INET, SOCK_DGRAM, 0);		// fd = 4
-	if(udpFd == -1 ) {
-		cerr << "Failed to Construct UDP Socket\n";
-		exit(0);
-	}	
-	bind(udpFd, (const struct sockaddr*) &serverAddr, sizeof(serverAddr));
+	cout << "TCP server is running\n";
 	// Use Select
 	fd_set rSet, allSet; int mxFd = max(tcpFd, udpFd) + 1;
 	FD_ZERO(&allSet);
@@ -85,11 +87,12 @@ int main(int argc, char** argv) {
 		// Listen and Accept
 		if(FD_ISSET(tcpFd, &rSet)) {
 			int clientFd = accept(tcpFd, NULL, NULL);
+			cout << "New connection\n";
 			FD_SET(clientFd, &allSet);
 			mxFd = max(mxFd, clientFd + 1);
 			clientSet.insert(clientFd);
 			SendMsg(clientFd, "*****Welcome to Game 1A2B*****\n", 0);
-			SendMsg(clientFd, "% ", 1);
+			SendMsg(clientFd, "", 1);
 		}
 		// Handle UDP Message
 		if(FD_ISSET(udpFd, &rSet)) {
@@ -117,7 +120,7 @@ int main(int argc, char** argv) {
 					msg.pop_back();
 					DealWithCommand(clientFd, msg);
 					if(!CS[clientFd].inGame && (rmSet.empty() || rmSet.back() != clientFd))
-						SendMsg(clientFd, "% ", 1);
+						SendMsg(clientFd, "", 1);
 				}
 			}
 		}
@@ -127,7 +130,6 @@ int main(int argc, char** argv) {
 			FD_CLR(rmSet[i], &allSet);
 			clientSet.erase(rmSet[i]);
 			close(rmSet[i]);
-			cout << "Number " << rmSet[i] << " disconnected\n";
 		}	
 	}
 	return 0;
@@ -156,7 +158,7 @@ void SendMsg(int fd, string s, bool lastMsg) {
 	}
 }
 void SendMsgUDP(int fd, string s, sockaddr_in& clientAddr) {
-	s += "% ";
+//	s += "% ";
 	char BUF[MXL + 1]; bzero(BUF, sizeof(BUF));
 	strcpy(BUF, s.c_str()); BUF[s.length()] = '\0';
 	sendto(fd, BUF, strlen(BUF), 0, (const struct sockaddr*) &clientAddr, sizeof(clientAddr));
@@ -255,9 +257,25 @@ string RandomPick4Digit() {
 	}
 	return question;
 }
-// WARNING: To Be Added...	//
-string GetResponse(string& guess, string& ans) { return "123"; }
-// WARNING					//
+string GetResponse(string& guess, string& ans) {
+	bool used[4] = {0}; int a = 0, b = 0;
+	for(int i = 0; i < 4; i++) if(guess[i] == ans[i]) {
+		a++, used[i] = 1;
+	}
+	for(int i = 0; i < 4; i++) {
+		if(guess[i] == ans[i]) continue;
+		for(int j = 0; j < 4; j++) {
+			if(used[j]) continue;
+			else if(guess[i] == ans[j]) {
+				b++, used[j] = 1;
+			}
+		}
+	}
+	string ret;
+	ret += (char) (a + '0'); ret += 'A';
+	ret += (char) (b + '0'); ret += 'B';
+	return ret;
+}
 void CommandExit(int fd, vector<string>& v) {
 	if(v.size() != 1) SendMsg(fd, "Usage: exit\n", 0);
 	else rmSet.push_back(fd);

@@ -40,12 +40,11 @@ int main(int argc, char** argv) {
 		if(msg[0] == 'r' || msg[0] == 'g') {
 			char BUF[MXL + 1]; bzero(BUF, sizeof(BUF));
 			strcpy(BUF, msg.c_str()); BUF[msg.length()] = '\0';
-			sendto(udpFd, BUF, strlen(BUF), 0, (struct sockaddr*) &serverAddr, sizeof(serverAddr));
+			sendto(udpFd, BUF, strlen(BUF), 0, (const struct sockaddr*) &serverAddr, sizeof(serverAddr));
 			bzero(BUF, sizeof(BUF));
 			socklen_t len = sizeof(serverAddr);
 			recvfrom(udpFd, BUF, sizeof(BUF), 0, (struct sockaddr*) &serverAddr, &len);
-			string msg = BUF;
-			cout << msg;
+			string msg = BUF; cout << msg;
 		}
 		// Use TCP to Send Message
 		else {
