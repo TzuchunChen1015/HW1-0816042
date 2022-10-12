@@ -278,5 +278,8 @@ string GetResponse(string& guess, string& ans) {
 }
 void CommandExit(int fd, vector<string>& v) {
 	if(v.size() != 1) SendMsg(fd, "Usage: exit\n", 0);
-	else rmSet.push_back(fd);
+	else {
+		rmSet.push_back(fd);
+		cout << "tcp get msg: exit\n";
+	}
 }
