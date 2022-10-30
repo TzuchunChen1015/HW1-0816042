@@ -164,7 +164,7 @@ void SendMsgUDP(int fd, string s, sockaddr_in& clientAddr) {
 	sendto(fd, BUF, strlen(BUF), 0, (const struct sockaddr*) &clientAddr, sizeof(clientAddr));
 }
 void CommandRegister(int fd, vector<string>& v, sockaddr_in& clientAddr) {
-	if(v.size() != 4) SendMsgUDP(fd, "register <username> <email> <password>\n", clientAddr);
+	if(v.size() != 4) SendMsgUDP(fd, "Usage: register <username> <email> <password>\n", clientAddr);
 	else if(nameMap.find(v[1]) != nameMap.end()) SendMsgUDP(fd, "Username is already used.\n", clientAddr);
 	else if(emailMap.find(v[2]) != emailMap.end()) SendMsgUDP(fd, "Email is already used.\n", clientAddr);
 	else {
